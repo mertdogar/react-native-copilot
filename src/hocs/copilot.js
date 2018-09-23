@@ -1,10 +1,10 @@
-// @flow
+//
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
 import { View } from 'react-native';
 
-import mitt from 'mitt';
+import EventEmitterExtra from 'event-emitter-extra';
 import hoistStatics from 'hoist-non-react-statics';
 
 import CopilotModal from '../components/CopilotModal';
@@ -12,7 +12,7 @@ import { OFFSET_WIDTH } from '../components/style';
 
 import { getFirstStep, getLastStep, getStepNumber, getPrevStep, getNextStep } from '../utilities';
 
-import type { Step, CopilotContext } from '../types';
+
 
 /*
 This is the maximum wait time for the steps to be registered before starting the tutorial
@@ -20,13 +20,13 @@ At 60fps means 2 seconds
 */
 const MAX_START_TRIES = 120;
 
-type State = {
-  steps: { [string]: Step },
-  currentStep: ?Step,
-  visible: boolean,
-  androidStatusBarVisible: boolean,
-  backdropColor: string
-};
+
+
+
+
+
+
+
 
 const copilot = ({
   overlay,
@@ -37,19 +37,22 @@ const copilot = ({
   backdropColor,
 } = {}) =>
   (WrappedComponent) => {
-    class Copilot extends Component<any, State> {
+    class Copilot extends Component             {
+      steps = {};
+      currentStep = null;
+
       state = {
         steps: {},
         currentStep: null,
         visible: false,
       };
 
-      getChildContext(): { _copilot: CopilotContext } {
+      getChildContext()                               {
         return {
           _copilot: {
             registerStep: this.registerStep,
             unregisterStep: this.unregisterStep,
-            getCurrentStep: () => this.state.currentStep,
+            getCurrentStep: () => this.currentStep,
           },
         };
       }
@@ -62,55 +65,66 @@ const copilot = ({
         this.mounted = false;
       }
 
-      getStepNumber = (step: ?Step = this.state.currentStep): number =>
-        getStepNumber(this.state.steps, step);
+      getStepNumber = (step        = this.currentStep)         =>
+        getStepNumber(this.steps, step);
 
-      getFirstStep = (): ?Step => getFirstStep(this.state.steps);
+      getFirstStep = ()        => getFirstStep(this.steps);
 
-      getLastStep = (): ?Step => getLastStep(this.state.steps);
+      getLastStep = ()        => getLastStep(this.steps);
 
-      getPrevStep = (step: ?Step = this.state.currentStep): ?Step =>
-        getPrevStep(this.state.steps, step);
+      getPrevStep = (step        = this.currentStep)        =>
+        getPrevStep(this.steps, step);
 
-      getNextStep = (step: ?Step = this.state.currentStep): ?Step =>
-        getNextStep(this.state.steps, step);
+      getNextStep = (step        = this.currentStep)        =>
+        getNextStep(this.steps, step);
 
-      setCurrentStep = async (step: Step, move?: boolean = true): void => {
-        await this.setState({ currentStep: step });
+      setCurrentStep = async (step      , move           = true)       => {
+        this.currentStep = step;
+        await this.setStatePromise({ currentStep: step.name, currentStepHidden: false });
         this.eventEmitter.emit('stepChange', step);
-
         if (move) {
           this.moveToCurrentStep();
         }
       }
 
-      setVisibility = (visible: boolean): void => new Promise((resolve) => {
+      setVisibility = (visible         )       => new Promise((resolve) => {
         this.setState({ visible }, () => resolve());
+      });
+
+      setStatePromise = (visible         )       => new Promise((resolve) => {
+        this.setState(visible , (err) => {
+          resolve()
+        });
       });
 
       startTries = 0;
 
       mounted = false;
 
-      eventEmitter = mitt();
+      eventEmitter = new EventEmitterExtra();
 
-      isFirstStep = (): boolean => this.state.currentStep === this.getFirstStep();
+      isFirstStep = ()          => this.currentStep === this.getFirstStep();
 
-      isLastStep = (): boolean => this.state.currentStep === this.getLastStep();
+      isLastStep = ()          => this.currentStep === this.getLastStep();
 
-      registerStep = (step: Step): void => {
+      registerStep = (step      )       => {
+        this.steps[step.name] = step;
+
         this.setState(({ steps }) => ({
           steps: {
             ...steps,
-            [step.name]: step,
+            [step.name]: step.name,
           },
         }));
       }
 
-      unregisterStep = (stepName: string): void => {
+      unregisterStep = (stepName        )       => {
         if (!this.mounted) {
           return;
         }
+
+        delete this.steps[stepName];
+
         this.setState(({ steps }) => ({
           steps: Object.entries(steps)
             .filter(([key]) => key !== stepName)
@@ -118,19 +132,31 @@ const copilot = ({
         }));
       }
 
-      next = async (): void => {
+      next = async ()       => {
+        if (this.eventEmitter.listenerCount('willGoNext')) {
+          this.currentStep.hide = true;
+          await this.setStatePromise({currentStepHidden: true});
+          const response = await this.eventEmitter.emitAsync('willGoNext', this.currentStep);
+          if (response.includes('stop'))
+            return this.stop();
+        }
         await this.setCurrentStep(this.getNextStep());
       }
 
-      prev = async (): void => {
+      prev = async ()       => {
+        if (this.eventEmitter.listenerCount('willGoPrev')) {
+          this.currentStep.hide = true;
+          await this.setStatePromise({currentStepHidden: true});
+          await this.eventEmitter.emitAsync('willGoPrev', this.currentStep);
+        }
         await this.setCurrentStep(this.getPrevStep());
       }
 
-      start = async (fromStep?: string): void => {
+      start = async (fromStep         )       => {
         const { steps } = this.state;
 
         const currentStep = fromStep
-          ? steps[fromStep]
+          ? this.steps[fromStep]
           : this.getFirstStep();
 
         if (this.startTries > MAX_START_TRIES) {
@@ -150,13 +176,13 @@ const copilot = ({
         }
       }
 
-      stop = async (): void => {
+      stop = async ()       => {
         await this.setVisibility(false);
         this.eventEmitter.emit('stop');
       }
 
-      async moveToCurrentStep(): void {
-        const size = await this.state.currentStep.target.measure();
+      async moveToCurrentStep()       {
+        const size = await this.currentStep.target.measure();
 
         await this.modal.animateMove({
           width: size.width + OFFSET_WIDTH,
@@ -168,11 +194,12 @@ const copilot = ({
 
       render() {
         return (
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, backgroundColor: 'red' }}>
             <WrappedComponent
               {...this.props}
               start={this.start}
-              currentStep={this.state.currentStep}
+              stop={this.stop}
+              currentStep={this.steps[this.state.currentStep]}
               visible={this.state.visible}
               copilotEvents={this.eventEmitter}
             />
@@ -184,7 +211,7 @@ const copilot = ({
               isFirstStep={this.isFirstStep()}
               isLastStep={this.isLastStep()}
               currentStepNumber={this.getStepNumber()}
-              currentStep={this.state.currentStep}
+              currentStep={this.steps[this.state.currentStep]}
               stepNumberComponent={stepNumberComponent}
               tooltipComponent={tooltipComponent}
               overlay={overlay}

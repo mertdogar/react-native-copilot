@@ -1,13 +1,13 @@
-// @flow
+//
 import React from 'react';
 
-type Props = {
-  copilot: Object,
-};
+
+
+
 
 const walkthroughable =
   WrappedComponent =>
-    ({ copilot, ...props }: Props) =>
+    ({ copilot, ...props }       ) =>
       <WrappedComponent {...copilot} {...props} />;
 
 export default walkthroughable;

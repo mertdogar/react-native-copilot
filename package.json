@@ -61,6 +61,7 @@
     }
   },
   "dependencies": {
+    "event-emitter-extra": "0.1.8",
     "hoist-non-react-statics": "^3.0.1",
     "mitt": "^1.1.3"
   }

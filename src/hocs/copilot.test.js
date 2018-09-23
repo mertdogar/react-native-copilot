@@ -1,4 +1,4 @@
-// @flow
+//
 import React from 'react';
 import { View, Modal } from 'react-native';
 import renderer from 'react-test-renderer';
@@ -9,11 +9,11 @@ import SvgMask from '../components/SvgMask';
 
 const WalkthroughableView = walkthroughable(View);
 
-type SampleComponentProps = {
-  secondStepActive?: boolean
-};
 
-const SampleComponent = ({ secondStepActive }: SampleComponentProps) => (
+
+
+
+const SampleComponent = ({ secondStepActive }                      ) => (
   <View>
     <CopilotStep order={0} name="step-1" text="This is the description for the first step">
       <WalkthroughableView />

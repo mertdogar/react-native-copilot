@@ -1,32 +1,32 @@
-// @flow
+//      
 import React, { Component } from 'react';
 
 import { View, Animated } from 'react-native';
 import styles from './style';
 
-import type { valueXY } from '../types';
+                                        
 
-type Props = {
-  size: valueXY,
-  position: valueXY,
-  layout: {
-    width: number,
-    height: number,
-  },
-  style: object | number | Array,
-  easing: func,
-  animationDuration: number,
-  animated: boolean,
-  backdropColor: string,
-};
+              
+                
+                    
+           
+                  
+                   
+    
+                                 
+               
+                            
+                    
+                        
+  
 
-type State = {
-  size: Animated.ValueXY,
-  position: Animated.ValueXY,
-  canvasSize: valueXY,
-};
+              
+                         
+                             
+                      
+  
 
-class ViewMask extends Component<Props, State> {
+class ViewMask extends Component               {
   state = {
     size: new Animated.ValueXY({ x: 0, y: 0 }),
     position: new Animated.ValueXY({ x: 0, y: 0 }),
@@ -38,7 +38,7 @@ class ViewMask extends Component<Props, State> {
     }
   }
 
-  animate = (size: valueXY = this.props.size, position: valueXY = this.props.position): void => {
+  animate = (size          = this.props.size, position          = this.props.position)       => {
     if (this.state.animated) {
       Animated.parallel([
         Animated.timing(this.state.size, {
@@ -78,6 +78,7 @@ class ViewMask extends Component<Props, State> {
         <Animated.View
           style={[
             styles.overlayRectangle,
+            {opacity: this.props.opacity},
             {
               right: leftOverlayRight,
               backgroundColor: this.props.backdropColor,
